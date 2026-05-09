@@ -1,20 +1,33 @@
-"""
-app.py - Flask application for the Sentiment Analysis Microservice.
-"""
+---
 
-import logging
-from flask import Flask, request, jsonify
-from model import load_model, predict_sentiment
+### Push the Change to AWS
+Once you save that change, run these commands in your MINGW64 terminal:
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+1.  **Stage and Commit:**
+    ```bash
+    git add app.py
+    git commit -m "Update home route message for deployment test"
+    ```
+2.  **Push to GitHub:**
+    ```bash
+    git push origin main
+    ```
 
-app = Flask(__name__)
+---
 
-# Pre-load the model when the app starts
-load_model()
+### What happens next?
+Because you recently pushed `.github/workflows/ci-cd.yml` to your repository, this `git push` will automatically start the following process:
 
 
+
+*   **Build**: GitHub Actions will create a new Docker image from your code.
+*   **Push**: The image will be sent to your ECR repository (`692785897749.dkr.ecr.us-east-1.amazonaws.comYour `app.py` is well-structured for a microservice, particularly with the inclusion of pre-loading the model and robust error handling. Since Git currently sees no changes, it means the version of `app.py` you have on your disk is identical to what was already committed.
+
+To trigger your new GitHub Actions CI/CD workflow, you need to make a visible change to the file.
+
+### Update your `home` route
+To test the deployment, change the `"status"` or add a custom message in the `home()` function. For example:
+```python
 @app.route("/", methods=["GET"])
 def home():
     """Health-check / welcome route."""
@@ -22,55 +35,11 @@ def home():
         {
             "service": "Sentiment Analysis Service",
             "version": "1.0.0",
-            "status": "running",
+            "status": "up and running on AWS ECS",  # Changed this line
+            "message": "Welcome Sedrick!",          # Added this line
             "endpoints": {
                 "GET /": "Service info",
                 "POST /predict": "Predict sentiment for submitted text",
             },
         }
     )
-
-
-@app.route("/predict", methods=["POST"])
-def predict():
-    """
-    Sentiment prediction endpoint.
-
-    Accepts JSON body: { "text": "<your text here>" }
-    Returns JSON: { "sentiment": "positive|negative|neutral", "score": float, ... }
-    """
-    data = request.get_json(silent=True)
-
-    if not data or "text" not in data:
-        return (
-            jsonify(
-                {
-                    "error": "Bad request. Provide JSON body with a 'text' field.",
-                    "example": {"text": "I love this product!"},
-                }
-            ),
-            400,
-        )
-
-    text = data["text"]
-
-    if not isinstance(text, str):
-        return jsonify({"error": "'text' must be a string."}), 400
-
-    result = predict_sentiment(text)
-    logger.info("Prediction: %s (score=%.4f)", result["sentiment"], result["score"])
-    return jsonify(result), 200
-
-
-@app.errorhandler(404)
-def not_found(e):
-    return jsonify({"error": "Route not found."}), 404
-
-
-@app.errorhandler(500)
-def server_error(e):
-    return jsonify({"error": "Internal server error."}), 500
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=False)
